@@ -1,0 +1,109 @@
+﻿DROP TABLE IF EXISTS personen, ferienwohnungen, adressen, mietet CASCADE;
+
+-- Aufgabe 4b)
+
+CREATE TABLE personen(
+	vorname VARCHAR(30),
+	nachname VARCHAR(30),
+	telefon VARCHAR(20),
+	id INT PRIMARY KEY ) WITH OIDS;
+
+CREATE TABLE vermueter(
+	website_url VARCHAR(50),
+	vid INT PRIMARY KEY) INHERITS(personen) with OIDS;
+
+CREATE TABLE urlauber(
+	uid INT PRIMARY KEY) INHERITS(personen) with OIDS;
+
+CREATE TABLE hausmeister(
+	faehigkeiten VARCHAR(50)[],
+	hid INT PRIMARY KEY) INHERITS(personen) with OIDS;
+
+CREATE TABLE ferienwohnungen(
+	personenahl INT,
+	zimmerzahl INT,
+	preis NUMERIC(8,2) CHECK (preis >0),
+	fid INT PRIMARY KEY) WITH OIDS;
+
+CREATE TABLE adressen(
+	strasse VARCHAR(50),
+	hausnummer VARCHAR(10),
+	plz CHAR(5),
+	ort VARCHAR(50),
+	aid INT PRIMARY KEY) WITH OIDS;
+
+-- Beziehungen
+-- bietet_an: 2stellig 1:n ferienwohnungen die Vermieter-ID als Fremdschlüssel hinzufügen
+ALTER TABLE ferienwohnungen ADD vid: INT;
+ALTER TABLE ferienwohnungen ADD CONSTRAINT "vermieter" FOREIGN KEY (vid)
+	REFERENCES vermieter(vid); 
+
+-- liegt: 2stellig 1-n ferienwohnung die Aresse-ID als Fremdshclüssel hinzufügen
+ALTER TABLE ferienwohnungen ADD aid INT;
+ALTER TABLE ferienwohnungen ADD CONSTRAINT "adresse" FOREIGN KEY (aid)
+	REFERENCES adessen(aid); 
+
+
+-- wohnt: 2-Stellig 1: --> personen die Aressen-ID als Fremdschlüssel hinzufügen
+ALTER TABLE personen ADD aid INT,
+ALTER TABLE personen ADD CONSTRAINT "adresse" FOREIGN KEY (aid)
+	REFERENCES adressen(aid);
+
+--mietet: 2-stellig n_m --> keine Ausnahme, bildet in Tabelle ab
+CREATE TABLE mietet(
+	uid INT,
+	fid INT,
+	von DATE,
+	bis DATE,
+	personezahl INT,
+	FOREIGN KEY (uid) REFERENCES urlauber(uid),
+	FOREIGN KEY (uid) REFERENCES ferienwohnung(fid)) WITH OIDS;
+
+-- Aufgabe 4c=
+INSERT INTO vermieter(vorname, nachname, telefon, id, website_url, vid) VALUES
+	('Max', 'Muster', '0123/456', 1, 'www.muster.test', 1);
+
+INSERT INTO adressen(strasse, hausnummer, plz, ort, aid) VALUES
+	('Dorfplatz', '1', '123456', 'Ödland', 1);
+
+INSERT INTO urlauber (vorname, nachname, telefon, id, aid, uid) VALUES
+	('Erika', 'Mustermann', '0346/123456', 2, 2, 1);
+
+INSERT INTO adressen (strasse, hausnumer, plz, ort, aid) VALUES
+	('Bahnhofsplatz', '2', '34567', 'Großmusterstadt' , 2);
+
+INSERT INTO hausmeister(vorname, nachname, teleofn, id, aid, faehigkeiten, hid) VALUES
+	('Paul', 'Emsig', '0123/567', 3,3, '{"Klempnerarbeiten", "Malerarbeiten","Gartenarbeiten"}',1);
+
+INSERT INTO adressen (strasse, hausnummer, plz, ort, aid) VALUES
+	('Dorfplatz', '1', '12345', 'Ödland', 3); 
+
+INSERT INTO ferienwohnungen (personenzahl, zimmerzahl, preis, fid, vid, aid) VALUES
+	(4,2,58.00,1,1,4);
+	
+-- die ADresse der Wohnung gibt es schon
+INSERT INTO ferienwohnungen (personenzahl, zimmerzahl, preis, fid, vid, aid) VALUES
+	(5 ,3 ,68.00 ,2 ,1 ,4);
+
+-- AUfgabe 4d)
+-- Tabelle ändern, ohne neu nazulegen
+ALTER TABLE urlauber ADD aend_datum DATE;
+ALTER TABLE urlauber ADD bearbeiter VARCHAR(20);
+
+--Triggerufunktion
+CREATE TABLE OR REPLACE FUNCTION urlauber_geandert()
+	RETURN TRIGGER AS
+	$$
+		NEW.aend_datum := NOW();
+		NEW.bearbeiter := CURRENT_USER
+		RETURN NEW;
+	$$ LANGUAGE plpgsql;
+
+--Trigger
+	
+CREATE TRIGGER urlauber_geandert
+	BEFORE INSERT OR UPDATE ON urlauber
+	FOR EACH ROW EXECUTE PROCEDURE urlauber_geandert();
+	
+
+	
